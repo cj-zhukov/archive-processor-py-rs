@@ -1,5 +1,5 @@
-pub type Result<T> = core::result::Result<T, Error>;
-pub type Error = Box<dyn std::error::Error>;
+pub mod error;
+pub use error::Result;
 
 use std::sync::Arc;
 
@@ -18,22 +18,18 @@ use uuid::Uuid;
 
 #[pyfunction]
 fn run_txt(py: Python<'_>, archive_name: String) -> PyResult<Vec<TxtData>> {
-    let res = pyo3_asyncio::tokio::run(py, async move {
-        let res = TxtData::processor(&archive_name).await.unwrap();
-        
-        Ok(res)
-    }); 
-
-    Ok(res?)
+    pyo3_asyncio::tokio::run(py, async move {
+        Ok(TxtData::processor(&archive_name).await?)
+    })
 }
 
 #[pyfunction]
 fn run_img(py: Python<'_>, archive_name: String) -> PyResult<PyArrowType<Vec<RecordBatch>>> {
     let batches = pyo3_asyncio::tokio::run(py, async move {
-        let mut records = ImageData::processor(&archive_name).await.unwrap();
+        let mut records = ImageData::processor(&archive_name).await?;
         let ctx = SessionContext::new();
-        let df = ImageData::to_df(ctx, &mut records).unwrap();
-        let res = df.collect().await.unwrap();
+        let df = ImageData::to_df(ctx, &mut records)?;
+        let res = df.collect().await?;
         
         Ok(res)
     }); 
@@ -126,7 +122,7 @@ impl ImageData {
         for index in 0..zip.file().entries().len() {
             let mut reader = zip.reader_with_entry(index).await?;
             let file_name = reader.entry().filename().clone().into_string()?;
-            if file_name.ends_with(".jpg") {
+            if file_name.ends_with(".jpg") || file_name.ends_with(".jpeg") {
                 let mut buffer = Vec::new();
                 let _n = reader.read_to_end(&mut buffer).await?;
                 let pkey = Uuid::new_v4().to_string();    

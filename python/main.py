@@ -46,7 +46,6 @@ def batches_example():
     print(df)
 
 
-
 if __name__ == "__main__":
-    struct_example()
+    # struct_example()
     batches_example()
